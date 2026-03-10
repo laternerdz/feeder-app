@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Feeder" />
+  <title>Feeder</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
+      background: #0f0d0b;
+      color: #f5ecd7;
+    }
+    #app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Setup screen */
+    #setup {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 32px 24px; gap: 16px;
+    }
+    #setup h1 { font-size: 24px; font-weight: 300; letter-spacing: 0.1em; }
+    #setup p { font-size: 13px; color: #78716c; text-align: center; line-height: 1.6; max-width: 280px; }
+    #setup input {
+      width: 100%; background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; padding: 14px 16px;
+      color: #f5ecd7; font-size: 14px; font-family: inherit;
+      outline: none;
+    }
+    #setup input::placeholder { color: rgba(255,255,255,0.2); font-size: 12px; }
+    #setup button {
+      width: 100%; padding: 14px;
+      background: rgba(212,168,83,0.12);
+      border: 1px solid rgba(212,168,83,0.3);
+      border-radius: 10px; color: #d4a853;
+      font-size: 13px; letter-spacing: 0.12em;
+      text-transform: uppercase; cursor: pointer;
+      font-family: inherit;
+    }
+
+    /* Main layout */
+    #main { flex: 1; display: none; flex-direction: column; overflow: hidden; }
+    #main.active { display: flex; }
+
+    /* Header */
+    #header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 52px 24px 8px;
+      flex-shrink: 0;
+    }
+    #header .app-label { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; }
+    #header .clock { font-size: 18px; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
+
+    /* Nav tabs */
+    #nav {
+      display: flex; gap: 4px; padding: 4px 24px 16px;
+      flex-shrink: 0; overflow-x: auto;
+    }
+    #nav button {
+      background: transparent; border: 1px solid transparent;
+      border-radius: 999px; padding: 6px 14px;
+      font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+      cursor: pointer; font-family: inherit; white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    /* Content */
+    #content { flex: 1; overflow-y: auto; padding: 0 24px 40px; }
+
+    /* Input screen */
+    .input-hint { font-size: 13px; letter-spacing: 0.06em; opacity: 0.5; margin-bottom: 16px; }
+    textarea {
+      width: 100%; background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px; padding: 18px;
+      font-size: 17px; line-height: 1.6;
+      outline: none; resize: none;
+      font-family: inherit; transition: border-color 0.2s;
+    }
+    textarea:focus { border-color: var(--accent-border); caret-color: var(--accent); }
+    textarea::placeholder { color: rgba(255,255,255,0.18); font-size: 14px; }
+    .input-footer {
+      display: flex; justify-content: space-between;
+      align-items: center; margin-top: 12px;
+    }
+    .char-count { font-size: 11px; letter-spacing: 0.08em; }
+    .send-btn {
+      padding: 12px 28px; border-radius: 999px;
+      font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase;
+      cursor: pointer; font-family: inherit; transition: all 0.2s;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    /* Pending items */
+    .pending-item {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px; padding: 16px; margin-bottom: 10px;
+      animation: slideIn 0.4s ease both;
+    }
+    .progress-bar-track { height: 2px; border-radius: 1px; margin-bottom: 14px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; border-radius: 1px; transition: width 1s linear; }
+    .field-label {
+      font-size: 11px; letter-spacing: 0.12em;
+      text-transform: uppercase; margin-bottom: 6px;
+    }
+    .raw-text {
+      font-size: 13px; line-height: 1.5; font-style: italic;
+      border-left: 2px solid rgba(255,255,255,0.1);
+      padding-left: 10px; margin-bottom: 14px;
+    }
+    .confidence-badge {
+      font-size: 10px; padding: 2px 7px;
+      border-radius: 999px; letter-spacing: 0.08em;
+    }
+    .interpreted-title { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
+    .interpreted-category { font-size: 12px; margin-bottom: 2px; }
+    .interpreted-placement { font-size: 11px; letter-spacing: 0.05em; }
+    .edit-field {
+      width: 100%; background: rgba(255,255,255,0.06);
+      border-radius: 8px; padding: 8px 10px;
+      font-size: 14px; outline: none; font-family: inherit;
+      margin-bottom: 8px;
+    }
+    .item-actions { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+    .btn-commit {
+      flex: 1; padding: 9px; border-radius: 8px;
+      font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
+      cursor: pointer; font-family: inherit;
+    }
+    .btn-edit {
+      padding: 9px 14px; border-radius: 8px;
+      font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
+      cursor: pointer; font-family: inherit;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .btn-delete {
+      padding: 9px 14px; border-radius: 8px; font-size: 12px;
+      cursor: pointer; font-family: inherit;
+      background: transparent;
+      border: 1px solid rgba(248,113,113,0.2);
+      color: rgba(248,113,113,0.6);
+    }
+    .countdown { font-size: 11px; letter-spacing: 0.05em; min-width: 32px; text-align: right; }
+
+    /* Committed items */
+    .committed-item {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px; padding: 16px; margin-bottom: 10px;
+      animation: slideIn 0.3s ease both;
+    }
+
+    /* Morning review */
+    #review { display: none; flex-direction: column; height: 100%; }
+    #review.active { display: flex; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding-top: 64px; }
+    .empty-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.4; }
+    .empty-text { font-size: 14px; }
+
+    /* Loading */
+    .loading {
+      display: flex; align-items: center; gap: 10px;
+      padding: 20px 0; font-size: 14px; letter-spacing: 0.08em;
+    }
+    .spinner { animation: spin 1s linear infinite; }
+
+    /* Status message */
+    #status-bar {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: rgba(30,25,20,0.95); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 999px; padding: 10px 20px;
+      font-size: 12px; letter-spacing: 0.1em;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none;
+      white-space: nowrap; z-index: 100;
+    }
+    #status-bar.show { opacity: 1; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-8px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Setup screen -->
+  <div id="setup">
+    <h1>Feeder</h1>
+    <p>Enter your keys to connect. Both are stored only in this browser and never in any repository.</p>
+    <div style="width:100%;text-align:left">
+      <div style="font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:#78716c;margin-bottom:6px">GitHub Personal Access Token</div>
+      <input type="password" id="token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" />
+    </div>
+    <div style="width:100%;text-align:left">
+      <div style="font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:#78716c;margin-bottom:6px">Anthropic API Key</div>
+      <input type="password" id="anthropic-input" placeholder="sk-ant-xxxxxxxxxxxxxxxxxxxx" />
+    </div>
+    <p style="font-size:11px; color:#57534e; text-align:center;">
+      Keys live only in your browser's local storage.<br/>
+      Never committed to any repo. Never shared.
+    </p>
+    <button onclick="saveToken()">Connect</button>
+  </div>
+
+  <!-- Main app -->
+  <div id="main">
+    <div id="header">
+      <span class="app-label" id="app-label">Feeder</span>
+      <span class="clock" id="clock">--:--</span>
+    </div>
+    <div id="nav">
+      <button id="tab-input" onclick="switchTab('input')">New Start</button>
+      <button id="tab-pending" onclick="switchTab('pending')">Pending</button>
+      <button id="tab-saved" onclick="switchTab('saved')">Saved</button>
+      <button id="tab-review" onclick="switchTab('review')">Morning Review</button>
+    </div>
+    <div id="content">
+
+      <!-- Input tab -->
+      <div id="view-input" style="display:none; animation: fadeUp 0.4s ease both;">
+        <div class="input-hint">What's on your mind?</div>
+        <textarea id="start-input" rows="6"
+          placeholder="Type anything. A task, a thought, a fragment. Claude will sort it."
+          oninput="onInputChange()"
+          onkeydown="onInputKey(event)"></textarea>
+        <div class="input-footer">
+          <span class="char-count" id="char-count" style="color: var(--text-dim);">⌘↵ to send</span>
+          <button class="send-btn" id="send-btn" onclick="sendStart()"
+            style="background: rgba(255,255,255,0.03); border: 1px solid var(--text-mute); color: var(--text-dim);">
+            Send Start
+          </button>
+        </div>
+      </div>
+
+      <!-- Pending tab -->
+      <div id="view-pending" style="display:none; animation: fadeUp 0.4s ease both;">
+        <div id="pending-list"></div>
+      </div>
+
+      <!-- Saved tab -->
+      <div id="view-saved" style="display:none; animation: fadeUp 0.4s ease both;">
+        <div id="saved-list"></div>
+      </div>
+
+      <!-- Review tab -->
+      <div id="view-review" style="display:none; animation: fadeUp 0.4s ease both;">
+        <div id="review-content"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<div id="status-bar"></div>
+
+<script>
+// ─── Config ───────────────────────────────────────────────────────────────────
+const GITHUB_OWNER = 'laternerdz';
+const DATA_REPO = 'feeder-data';
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let GH_TOKEN = localStorage.getItem('feeder_gh_token') || '';
+let ANTHROPIC_KEY = localStorage.getItem('feeder_anthropic_key') || '';
+let pending = JSON.parse(localStorage.getItem('feeder_pending') || '[]');
+let committed = JSON.parse(localStorage.getItem('feeder_committed') || '[]');
+let currentTab = 'input';
+let modelContent = '';
+let startsContent = '';
+let pendingTimers = {};
+
+// ─── Theme ────────────────────────────────────────────────────────────────────
+function getTheme() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return {
+    bg: 'linear-gradient(160deg, #1a1209 0%, #2d1f0a 50%, #0f0d0b 100%)',
+    accent: '#d4a853', accentDim: 'rgba(212,168,83,0.15)',
+    accentBorder: 'rgba(212,168,83,0.3)', text: '#f5ecd7',
+    textDim: '#8a7a5a', textMute: '#3d3425', label: 'Morning · Feeder',
+  };
+  if (h >= 12 && h < 17) return {
+    bg: 'linear-gradient(160deg, #0a1520 0%, #0d2030 50%, #080e14 100%)',
+    accent: '#5ba3d4', accentDim: 'rgba(91,163,212,0.12)',
+    accentBorder: 'rgba(91,163,212,0.28)', text: '#d8eaf5',
+    textDim: '#4a7a9b', textMute: '#1a2d3d', label: 'Afternoon · Feeder',
+  };
+  return {
+    bg: 'linear-gradient(160deg, #0d0a18 0%, #150e2a 50%, #080610 100%)',
+    accent: '#9b7fd4', accentDim: 'rgba(155,127,212,0.12)',
+    accentBorder: 'rgba(155,127,212,0.28)', text: '#e8e0f5',
+    textDim: '#5a4a7a', textMute: '#1e1630', label: 'Evening · Feeder',
+  };
+}
+
+function applyTheme() {
+  const t = getTheme();
+  document.body.style.background = t.bg;
+  document.documentElement.style.setProperty('--accent', t.accent);
+  document.documentElement.style.setProperty('--accent-dim', t.accentDim);
+  document.documentElement.style.setProperty('--accent-border', t.accentBorder);
+  document.documentElement.style.setProperty('--text', t.text);
+  document.documentElement.style.setProperty('--text-dim', t.textDim);
+  document.documentElement.style.setProperty('--text-mute', t.textMute);
+  document.getElementById('app-label').textContent = t.label;
+  document.getElementById('app-label').style.color = t.textDim;
+
+  // Nav tabs
+  const tabs = ['input','pending','saved','review'];
+  tabs.forEach(tab => {
+    const btn = document.getElementById(`tab-${tab}`);
+    if (btn) {
+      btn.style.color = currentTab === tab ? t.accent : t.textDim;
+      btn.style.background = currentTab === tab ? t.accentDim : 'transparent';
+      btn.style.border = `1px solid ${currentTab === tab ? t.accentBorder : 'transparent'}`;
+    }
+  });
+
+  // Pending badge
+  const pTab = document.getElementById('tab-pending');
+  if (pTab) pTab.textContent = `Pending${pending.length ? ` · ${pending.length}` : ''}`;
+  const sTab = document.getElementById('tab-saved');
+  if (sTab) sTab.textContent = `Saved${committed.length ? ` · ${committed.length}` : ''}`;
+}
+
+// ─── Clock ────────────────────────────────────────────────────────────────────
+function updateClock() {
+  const t = new Date();
+  document.getElementById('clock').textContent =
+    t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('clock').style.color = getTheme().text;
+}
+
+// ─── Setup ────────────────────────────────────────────────────────────────────
+function saveToken() {
+  const ghVal = document.getElementById('token-input').value.trim();
+  const anthropicVal = document.getElementById('anthropic-input').value.trim();
+  if (!ghVal) return showStatus('GitHub token required');
+  if (!anthropicVal) return showStatus('Anthropic API key required');
+  GH_TOKEN = ghVal;
+  ANTHROPIC_KEY = anthropicVal;
+  localStorage.setItem('feeder_gh_token', ghVal);
+  localStorage.setItem('feeder_anthropic_key', anthropicVal);
+  initApp();
+}
+
+async function initApp() {
+  if (!GH_TOKEN || !ANTHROPIC_KEY) {
+    document.getElementById('setup').style.display = 'flex';
+    document.getElementById('main').classList.remove('active');
+    return;
+  }
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('main').classList.add('active');
+  applyTheme();
+  updateClock();
+  setInterval(updateClock, 1000);
+  setInterval(applyTheme, 60000);
+  await loadDataFiles();
+  switchTab('input');
+  restorePendingTimers();
+}
+
+// ─── GitHub API ───────────────────────────────────────────────────────────────
+async function ghGet(path) {
+  const res = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${DATA_REPO}/contents/${path}`, {
+    headers: { Authorization: `token ${GH_TOKEN}`, Accept: 'application/vnd.github.v3+json' }
+  });
+  if (!res.ok) throw new Error(`GitHub GET failed: ${res.status}`);
+  return res.json();
+}
+
+async function ghPut(path, content, message, sha) {
+  const body = { message, content: btoa(unescape(encodeURIComponent(content))) };
+  if (sha) body.sha = sha;
+  const res = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${DATA_REPO}/contents/${path}`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `token ${GH_TOKEN}`,
+      Accept: 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`GitHub PUT failed: ${res.status}`);
+  return res.json();
+}
+
+async function loadDataFiles() {
+  try {
+    const [startsFile, modelFile] = await Promise.all([ghGet('starts.md'), ghGet('model.md')]);
+    startsContent = decodeURIComponent(escape(atob(startsFile.content.replace(/\n/g, ''))));
+    modelContent = decodeURIComponent(escape(atob(modelFile.content.replace(/\n/g, ''))));
+  } catch (e) {
+    showStatus('Could not load data files — check token & repo');
+  }
+}
+
+async function appendToStarts(item) {
+  try {
+    const startsFile = await ghGet('starts.md');
+    const current = decodeURIComponent(escape(atob(startsFile.content.replace(/\n/g, ''))));
+    const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const entry = `\n### ${item.title}\n- **Category:** ${item.category}\n- **Placement:** ${item.placement}\n- **Date:** ${date}\n- **Raw:** *${item.raw.replace(/\n/g, ' ').slice(0, 100)}${item.raw.length > 100 ? '…' : ''}*\n`;
+
+    const section = item.category.split('/')[0].trim();
+    let updated = current;
+    if (current.includes(`## ${section}`)) {
+      updated = current.replace(`## ${section}`, `## ${section}${entry}`);
+    } else {
+      updated = current + `\n## ${section}${entry}`;
+    }
+
+    await ghPut('starts.md', updated, `Add start: ${item.title}`, startsFile.sha);
+    startsContent = updated;
+  } catch (e) {
+    showStatus('Could not save to GitHub');
+  }
+}
+
+async function appendCorrection(raw, guessed, corrected) {
+  try {
+    const modelFile = await ghGet('model.md');
+    const current = decodeURIComponent(escape(atob(modelFile.content.replace(/\n/g, ''))));
+    const date = new Date().toLocaleDateString();
+    const entry = `\n- [${date}] Raw: "${raw.slice(0,60)}" | Guessed: "${guessed}" | Correct: "${corrected}"`;
+    const updated = current.replace('<!-- Format: [date] Raw: "..." | Claude guessed: "..." | Correct: "..." -->', 
+      `<!-- Format: [date] Raw: "..." | Claude guessed: "..." | Correct: "..." -->${entry}`);
+    await ghPut('model.md', updated, `Correction: ${corrected}`, modelFile.sha);
+    modelContent = updated;
+  } catch (e) { /* silent */ }
+}
+
+// ─── Claude API ───────────────────────────────────────────────────────────────
+async function callClaude(rawStart) {
+  const systemPrompt = `You are the intake processor for a personal productivity system called Feeder, built for a 44-year-old with ADHD.
+
+Your job: read a raw Start (a captured thought, task, or idea), then return ONLY a JSON object with these fields:
+- title: clean, concise title (max 8 words)
+- category: best matching category from the user's hierarchy
+- placement: specific node in the hierarchy where this belongs
+- confidence: "high", "medium", or "low"
+- summary: one sentence describing what this Start is about
+
+Here is the user's model file (their vocabulary, rules, and hierarchy):
+---
+${modelContent}
+---
+
+Here is the current starts.md hierarchy:
+---
+${startsContent}
+---
+
+Rules:
+- Return ONLY valid JSON. No preamble, no markdown, no explanation.
+- If multiple thoughts are in one Start, focus on the dominant one and note others in summary.
+- Use the user's own vocabulary from the model file.
+- Default to Inbox if genuinely unsure.`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: rawStart }],
+    }),
+  });
+
+  if (!res.ok) throw new Error('Claude API error');
+  const data = await res.json();
+  const text = data.content.map(b => b.text || '').join('');
+  const clean = text.replace(/```json|```/g, '').trim();
+  return JSON.parse(clean);
+}
+
+// ─── Input ────────────────────────────────────────────────────────────────────
+function onInputChange() {
+  const val = document.getElementById('start-input').value;
+  const t = getTheme();
+  const count = document.getElementById('char-count');
+  const btn = document.getElementById('send-btn');
+  count.textContent = val.length > 0 ? `${val.length} chars · ⌘↵ to send` : '⌘↵ to send';
+  count.style.color = t.textDim;
+  if (val.trim()) {
+    btn.style.background = t.accentDim;
+    btn.style.border = `1px solid ${t.accentBorder}`;
+    btn.style.color = t.accent;
+  } else {
+    btn.style.background = 'rgba(255,255,255,0.03)';
+    btn.style.border = `1px solid ${t.textMute}`;
+    btn.style.color = t.textDim;
+  }
+}
+
+function onInputKey(e) {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) sendStart();
+}
+
+async function sendStart() {
+  const input = document.getElementById('start-input');
+  const raw = input.value.trim();
+  if (!raw) return;
+  input.value = '';
+  onInputChange();
+
+  const btn = document.getElementById('send-btn');
+  btn.innerHTML = '<span class="spinner">◌</span> Claude thinking…';
+  btn.style.cursor = 'default';
+
+  try {
+    const interpreted = await callClaude(raw);
+    const item = {
+      id: Date.now(),
+      raw,
+      interpreted,
+      createdAt: Date.now(),
+      editing: false,
+      editTitle: interpreted.title,
+      editCategory: interpreted.category,
+      editPlacement: interpreted.placement,
+    };
+    pending.unshift(item);
+    savePending();
+    switchTab('pending');
+    startItemTimer(item.id);
+    showStatus('Start captured →');
+  } catch (e) {
+    showStatus('Claude error — check API key');
+  } finally {
+    btn.innerHTML = 'Send Start';
+    btn.style.cursor = 'pointer';
+  }
+}
+
+// ─── Pending timers ───────────────────────────────────────────────────────────
+const WINDOW_SECS = 15 * 60;
+
+function startItemTimer(id) {
+  if (pendingTimers[id]) clearInterval(pendingTimers[id]);
+  pendingTimers[id] = setInterval(() => {
+    const item = pending.find(p => p.id === id);
+    if (!item) { clearInterval(pendingTimers[id]); return; }
+    const elapsed = Math.floor((Date.now() - item.createdAt) / 1000);
+    if (elapsed >= WINDOW_SECS) {
+      clearInterval(pendingTimers[id]);
+      commitItem(id, { title: item.editTitle, category: item.editCategory, placement: item.editPlacement }, true);
+      return;
+    }
+    updateItemCountdown(id, elapsed);
+  }, 1000);
+}
+
+function restorePendingTimers() {
+  pending.forEach(item => startItemTimer(item.id));
+}
+
+function updateItemCountdown(id, elapsed) {
+  const remaining = Math.max(0, WINDOW_SECS - elapsed);
+  const fill = document.getElementById(`progress-${id}`);
+  const countdown = document.getElementById(`countdown-${id}`);
+  if (fill) fill.style.width = `${(remaining / WINDOW_SECS) * 100}%`;
+  if (countdown) {
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    countdown.textContent = `${m}:${String(s).padStart(2, '0')}`;
+  }
+}
+
+// ─── Commit / Delete ──────────────────────────────────────────────────────────
+async function commitItem(id, edits, autoCommit = false) {
+  const item = pending.find(p => p.id === id);
+  if (!item) return;
+
+  const wasEdited = edits.title !== item.interpreted.title ||
+    edits.category !== item.interpreted.category ||
+    edits.placement !== item.interpreted.placement;
+
+  const finalItem = {
+    ...item,
+    interpreted: { ...item.interpreted, ...edits },
+    committedAt: Date.now(),
+    autoCommit,
+  };
+
+  committed.unshift(finalItem);
+  pending = pending.filter(p => p.id !== id);
+  if (pendingTimers[id]) clearInterval(pendingTimers[id]);
+
+  saveCommitted();
+  savePending();
+  renderPending();
+  renderSaved();
+  applyTheme();
+
+  await appendToStarts(finalItem.interpreted);
+  if (wasEdited) {
+    await appendCorrection(item.raw, item.interpreted.title, edits.title);
+  }
+
+  showStatus(autoCommit ? 'Auto-committed ✦' : 'Committed ✦');
+}
+
+function deleteItem(id) {
+  pending = pending.filter(p => p.id !== id);
+  if (pendingTimers[id]) clearInterval(pendingTimers[id]);
+  savePending();
+  renderPending();
+  applyTheme();
+  showStatus('Start deleted');
+}
+
+function toggleEdit(id) {
+  const item = pending.find(p => p.id === id);
+  if (!item) return;
+  item.editing = !item.editing;
+  savePending();
+  renderPending();
+}
+
+function updateEdit(id, field, value) {
+  const item = pending.find(p => p.id === id);
+  if (!item) return;
+  item[field] = value;
+  savePending();
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function renderPending() {
+  const t = getTheme();
+  const list = document.getElementById('pending-list');
+  if (!pending.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">◎</div><div class="empty-text" style="color:${t.textDim}">No pending starts</div></div>`;
+    return;
+  }
+  list.innerHTML = pending.map(item => {
+    const elapsed = Math.floor((Date.now() - item.createdAt) / 1000);
+    const remaining = Math.max(0, WINDOW_SECS - elapsed);
+    const progress = (remaining / WINDOW_SECS) * 100;
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    const confColor = { high: '#4ade80', medium: t.accent, low: '#f87171' }[item.interpreted.confidence] || t.accent;
+
+    return `
+    <div class="pending-item">
+      <div class="progress-bar-track" style="background:${t.textMute}">
+        <div class="progress-bar-fill" id="progress-${item.id}" style="width:${progress}%; background:${t.accent}"></div>
+      </div>
+      <div class="field-label" style="color:${t.textDim}">Raw start</div>
+      <div class="raw-text" style="color:${t.textDim}; border-left-color:${t.textMute}">
+        ${item.raw.length > 120 ? item.raw.slice(0,120) + '…' : item.raw}
+      </div>
+      <div class="field-label" style="color:${t.textDim}; display:flex; align-items:center; gap:8px;">
+        Claude interpreted
+        <span class="confidence-badge" style="color:${confColor}; background:${confColor}18">${item.interpreted.confidence} confidence</span>
+      </div>
+      ${item.editing ? `
+        <div style="margin-bottom:12px">
+          <div style="font-size:10px;color:${t.textDim};margin-bottom:3px;letter-spacing:0.1em">Title</div>
+          <input class="edit-field" style="color:${t.text};border:1px solid ${t.accentBorder}"
+            value="${item.editTitle}" oninput="updateEdit(${item.id},'editTitle',this.value)" />
+          <div style="font-size:10px;color:${t.textDim};margin-bottom:3px;letter-spacing:0.1em">Category</div>
+          <input class="edit-field" style="color:${t.text};border:1px solid ${t.accentBorder}"
+            value="${item.editCategory}" oninput="updateEdit(${item.id},'editCategory',this.value)" />
+          <div style="font-size:10px;color:${t.textDim};margin-bottom:3px;letter-spacing:0.1em">Placement</div>
+          <input class="edit-field" style="color:${t.text};border:1px solid ${t.accentBorder}"
+            value="${item.editPlacement}" oninput="updateEdit(${item.id},'editPlacement',this.value)" />
+        </div>
+      ` : `
+        <div style="margin-bottom:12px">
+          <div class="interpreted-title" style="color:${t.text}">${item.editTitle}</div>
+          <div class="interpreted-category" style="color:${t.textDim}">${item.editCategory}</div>
+          <div class="interpreted-placement" style="color:${t.textDim}">→ ${item.editPlacement}</div>
+        </div>
+      `}
+      <div class="item-actions">
+        <button class="btn-commit" onclick="commitItem(${item.id},{title:document.getElementById('et-${item.id}')?.value||'${item.editTitle}',category:'${item.editCategory}',placement:'${item.editPlacement}'})"
+          style="background:${t.accentDim};border:1px solid ${t.accentBorder};color:${t.accent}">
+          Commit now
+        </button>
+        <button class="btn-edit" onclick="toggleEdit(${item.id})" style="color:${t.textDim}">
+          ${item.editing ? 'Done' : 'Edit'}
+        </button>
+        <button class="btn-delete" onclick="deleteItem(${item.id})">✕</button>
+        <span class="countdown" id="countdown-${item.id}" style="color:${t.textDim}">${m}:${String(s).padStart(2,'0')}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderSaved() {
+  const t = getTheme();
+  const list = document.getElementById('saved-list');
+  if (!committed.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">✦</div><div class="empty-text" style="color:${t.textDim}">Nothing saved yet</div></div>`;
+    return;
+  }
+  list.innerHTML = committed.map(item => `
+    <div class="committed-item">
+      <div class="interpreted-title" style="color:${t.text}">${item.interpreted.title}</div>
+      <div class="interpreted-category" style="color:${t.textDim}">${item.interpreted.category}</div>
+      <div class="interpreted-placement" style="color:${t.textDim}">→ ${item.interpreted.placement}</div>
+    </div>
+  `).join('');
+}
+
+function renderReview() {
+  const t = getTheme();
+  const el = document.getElementById('review-content');
+  const actionable = committed.slice(0, 5);
+
+  if (!actionable.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🌤</div><div class="empty-text" style="color:${t.textDim}">No starts to review yet.<br>Capture some first.</div></div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div style="color:${t.textDim};font-size:11px;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:20px">
+      ${actionable.length} starts ready
+    </div>
+    ${actionable.map((item, i) => `
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px;margin-bottom:10px;animation:slideIn 0.3s ${i * 0.1}s ease both;opacity:0;animation-fill-mode:forwards">
+        <div style="color:${t.text};font-size:17px;font-weight:500;margin-bottom:6px">${item.interpreted.title}</div>
+        <div style="color:${t.textDim};font-size:12px;margin-bottom:14px">${item.interpreted.category} → ${item.interpreted.placement}</div>
+        <div style="color:${t.textDim};font-size:11px;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:10px">First 3 steps</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${generateSteps(item.interpreted.title).map((step, si) => `
+            <div style="display:flex;align-items:center;gap:12px;background:${si===0?'rgba(255,255,255,0.07)':'rgba(255,255,255,0.03)'};border:1px solid ${si===0?'rgba(255,255,255,0.1)':'rgba(255,255,255,0.04)'};border-radius:10px;padding:12px 14px">
+              <div style="width:22px;height:22px;border-radius:50%;background:${si===0?'rgba(255,255,255,0.15)':'rgba(255,255,255,0.05)'};display:flex;align-items:center;justify-content:center;font-size:11px;color:${si===0?t.text:t.textDim};flex-shrink:0">${si+1}</div>
+              <div style="color:${si===0?t.text:t.textDim};font-size:${si===0?'16px':'14px'};font-weight:${si===0?'500':'400'}">${step}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function generateSteps(title) {
+  const t = title.toLowerCase();
+  if (t.includes('tax')) return ['Open tax folder now.', 'Find 2025 documents.', 'Start one section.'];
+  if (t.includes('email') || t.includes('call') || t.includes('message')) return ['Open your contacts.', 'Find the right person.', 'Write one line.'];
+  if (t.includes('write') || t.includes('doc') || t.includes('report')) return ['Open a blank doc.', 'Write the title.', 'Write one sentence.'];
+  if (t.includes('clean') || t.includes('organiz')) return ['Get one bag or box.', 'Pick one area only.', 'Remove 5 items.'];
+  return ['Open it right now.', 'Find the start point.', 'Do one small thing.'];
+}
+
+// ─── Tab switching ────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  ['input','pending','saved','review'].forEach(t => {
+    document.getElementById(`view-${t}`).style.display = t === tab ? 'block' : 'none';
+  });
+  if (tab === 'pending') renderPending();
+  if (tab === 'saved') renderSaved();
+  if (tab === 'review') renderReview();
+  applyTheme();
+}
+
+// ─── Persistence ──────────────────────────────────────────────────────────────
+function savePending() { localStorage.setItem('feeder_pending', JSON.stringify(pending)); }
+function saveCommitted() { localStorage.setItem('feeder_committed', JSON.stringify(committed)); }
+
+// ─── Status bar ───────────────────────────────────────────────────────────────
+let statusTimer;
+function showStatus(msg) {
+  const bar = document.getElementById('status-bar');
+  bar.textContent = msg;
+  bar.style.color = getTheme().text;
+  bar.classList.add('show');
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(() => bar.classList.remove('show'), 2500);
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+initApp();
+</script>
+</body>
+</html>
