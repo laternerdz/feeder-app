@@ -450,30 +450,24 @@ async function appendCorrection(raw, guessed, corrected) {
 
 // ─── Claude API ───────────────────────────────────────────────────────────────
 async function callClaude(rawStart) {
-  const systemPrompt = `You are the intake processor for a personal productivity system called Feeder, built for a 44-year-old with ADHD.
+  const systemPrompt = `You are a JSON-only API. You must respond with a single valid JSON object and absolutely nothing else — no preamble, no explanation, no markdown, no code fences, no "Here is...", no "I...". Just the raw JSON object starting with { and ending with }.
 
-Your job: read a raw Start (a captured thought, task, or idea), then return ONLY a JSON object with these fields:
-- title: clean, concise title (max 8 words)
-- category: best matching category from the user's hierarchy
-- placement: specific node in the hierarchy where this belongs
-- confidence: "high", "medium", or "low"
-- summary: one sentence describing what this Start is about
+You process "Starts" for a personal productivity system for a 44-year-old with ADHD.
 
-Here is the user's model file (their vocabulary, rules, and hierarchy):
----
-${modelContent}
----
+Return exactly this JSON shape:
+{"title":"string max 8 words","category":"string","placement":"string","confidence":"high|medium|low","summary":"one sentence"}
 
-Here is the current starts.md hierarchy:
----
-${startsContent}
----
+User's model file:
+${modelContent || 'No model file loaded yet. Use best judgment.'}
+
+User's current hierarchy:
+${startsContent || 'No hierarchy loaded yet. Default to Inbox.'}
 
 Rules:
-- Return ONLY valid JSON. No preamble, no markdown, no explanation.
-- If multiple thoughts are in one Start, focus on the dominant one and note others in summary.
+- If multiple thoughts exist, focus on the dominant one.
 - Use the user's own vocabulary from the model file.
-- Default to Inbox if genuinely unsure.`;
+- Default placement to Inbox if unsure.
+- ONLY output the JSON object. Nothing before it. Nothing after it.`;
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -484,22 +478,19 @@ Rules:
       'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 1000,
       system: systemPrompt,
       messages: [{ role: 'user', content: rawStart }],
     }),
   });
 
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    const errMsg = errData?.error?.message || `HTTP ${res.status}`;
-    throw new Error(`Claude API: ${errMsg}`);
-  }
+  if (!res.ok) throw new Error('Claude API error');
   const data = await res.json();
   const text = data.content.map(b => b.text || '').join('');
-  const clean = text.replace(/```json|```/g, '').trim();
-  return JSON.parse(clean);
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('No JSON found in response');
+  return JSON.parse(match[0]);
 }
 
 // ─── Input ────────────────────────────────────────────────────────────────────
@@ -554,7 +545,7 @@ async function sendStart() {
     startItemTimer(item.id);
     showStatus('Start captured →');
   } catch (e) {
-    showStatus(e.message || 'Claude error — check API key');
+    showStatus('Claude error — check API key');
   } finally {
     btn.innerHTML = 'Send Start';
     btn.style.cursor = 'pointer';
@@ -797,7 +788,7 @@ function showStatus(msg) {
   bar.style.color = getTheme().text;
   bar.classList.add('show');
   clearTimeout(statusTimer);
-  statusTimer = setTimeout(() => bar.classList.remove('show'), 6000);
+  statusTimer = setTimeout(() => bar.classList.remove('show'), 2500);
 }
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
