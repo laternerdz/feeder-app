@@ -491,7 +491,11 @@ Rules:
     }),
   });
 
-  if (!res.ok) throw new Error('Claude API error');
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    const errMsg = errData?.error?.message || `HTTP ${res.status}`;
+    throw new Error(`Claude API: ${errMsg}`);
+  }
   const data = await res.json();
   const text = data.content.map(b => b.text || '').join('');
   const clean = text.replace(/```json|```/g, '').trim();
@@ -550,7 +554,7 @@ async function sendStart() {
     startItemTimer(item.id);
     showStatus('Start captured →');
   } catch (e) {
-    showStatus('Claude error — check API key');
+    showStatus(e.message || 'Claude error — check API key');
   } finally {
     btn.innerHTML = 'Send Start';
     btn.style.cursor = 'pointer';
@@ -793,7 +797,7 @@ function showStatus(msg) {
   bar.style.color = getTheme().text;
   bar.classList.add('show');
   clearTimeout(statusTimer);
-  statusTimer = setTimeout(() => bar.classList.remove('show'), 2500);
+  statusTimer = setTimeout(() => bar.classList.remove('show'), 6000);
 }
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
